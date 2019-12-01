@@ -45,6 +45,7 @@ public class S3SelectImpl implements S3Select {
     return fileNamePrefix.stream()
         .map(v -> getFileNames(v))
         .flatMap( list -> list.stream())
+        .parallel()
         .map(s ->
         {
           try {
@@ -57,10 +58,14 @@ public class S3SelectImpl implements S3Select {
     .collect(Collectors.toList());
   }
 
-  protected  Stream<Event> scanEventsInFile(final String fileName, final String query) throws IOException{
+  protected  Stream<Event> scanEventsInFile(
+      final String fileName,
+      final String query) throws IOException{
 
     SelectObjectContentRequest request = generateBaseJsonRequest(BUCKET_NAME, fileName, query);
-    try (InputStream result = s3Client.selectObjectContent(request).getPayload().getRecordsInputStream()) {
+    try (InputStream result = s3Client.selectObjectContent(request)
+        .getPayload()
+        .getRecordsInputStream()) {
       List<String> lines = IOUtils.readLines(result, StandardCharsets.UTF_8.toString());
       return lines.stream().filter(s -> !s.isEmpty()).map(s -> gson.fromJson(s, Event.class));
     }
@@ -75,7 +80,10 @@ public class S3SelectImpl implements S3Select {
     return  baseQuery.toString();
   }
 
-  protected static SelectObjectContentRequest generateBaseJsonRequest(String bucket, String key, String query) {
+  protected static SelectObjectContentRequest generateBaseJsonRequest(
+      String bucket,
+      String key,
+      String query) {
     SelectObjectContentRequest request = new SelectObjectContentRequest();
     request.setBucketName(bucket);
     request.setKey(key);
